@@ -30,7 +30,7 @@ public class MainApplication extends Application implements ReactApplication {
           new MainReactPackage(),
             new VectorIconsPackage(),
             new MapsPackage(),
-            new RNGestureHandlyerPackage(),
+            new RNGestureHandlerPackage(),
             new ReactVideoPackage()
       );
     }

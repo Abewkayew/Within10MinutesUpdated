@@ -7,15 +7,19 @@ import {
   Platform,
   ScrollView,
   Dimensions,
-  Button
+  Button,
+  YellowBox,
+  AsyncStorage
 } from "react-native";
-import MapView, { Marker, AnimatedRegion, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, { Callout, Marker, AnimatedRegion } from "react-native-maps";
 import { Icon } from 'react-native-elements'
 import VideoView from '../components/VideoView';//'./app/components/VideoView';
 import EStyleSheet from 'react-native-extended-stylesheet';
-
-const LATITUDE = 9.0397084;
-const LONGITUDE = 38.7624379;
+import Firebase from '../utils/Firebase';
+import UserLocationManager from '../utils/UserLocationManager';
+import videoManage from '../utils/videoManage';
+const LATITUDE = 55.6819184;
+const LONGITUDE = 12.5938208;
 const LATITUDE_DELTA = 0.009;
 const LONGITUDE_DELTA = 0.009;
 
@@ -23,6 +27,9 @@ const dimensions = Dimensions.get("window");
 const mapHeight = dimensions.height;
 const mapWidth = dimensions.width;
 
+const database = Firebase.database();
+const ref = database.ref('locations');
+const regions_ref = database.ref('regions');
 
 class AnimatedMarkers extends React.Component {
   constructor(props) {
@@ -39,13 +46,15 @@ class AnimatedMarkers extends React.Component {
         latitude: LATITUDE,
         longitude: LONGITUDE
       }),
-      showVideo: false
+      showVideo: false,
+      Location_object: [],
+      Region_object: [],
     };
   }
   componentWillMount() {
     navigator.geolocation.getCurrentPosition(
       position => { },
-      error => alert(error.message),
+      // error => alert(error.message),
       {
         enableHighAccuracy: true,
         timeout: 50000
@@ -54,10 +63,43 @@ class AnimatedMarkers extends React.Component {
   }
 
   componentDidMount() {
+
+    var userLocationManage = new UserLocationManager();
+
+    this.setState({
+      Location_object: userLocationManage
+    });
+    // Make Location object persistent...
+    
+    _storeData = async () => {
+      try {
+        await AsyncStorage.setItem('LocationObject', userLocationManage);
+
+      } catch (error) {
+        // Error saving data
+      }
+    }
+
+    _retrieveData = async () => {
+      try {
+        const value = await AsyncStorage.getItem('LocationObject');
+        if (value !== null) {
+          this.setState({
+            Location_object: value
+          });
+        }
+       } catch (error) {
+         // Error retrieving data
+       }
+    }
+
+    // get the position coordinate object and then process it.....
+
     const { coordinate } = this.state;
     this.watchID = navigator.geolocation.watchPosition(
       position => {
         const { coordinate, routeCoordinates } = this.state;
+        // const { latitude, longitude } = position.coords;
         const { latitude, longitude } = position.coords;
         const newCoordinate = {
           latitude,
@@ -84,9 +126,11 @@ class AnimatedMarkers extends React.Component {
       error => console.log(error),
       { enableHighAccuracy: true, timeout: 20000 }
     );
+
   }
 
   componentWillUnmount() {
+
     navigator.geolocation.clearWatch(this.watchID);
   }
 
@@ -100,6 +144,13 @@ class AnimatedMarkers extends React.Component {
 
   buttonClickListener = () => {
     alert("works fine");
+  }
+
+  markerClick() {
+      console.log("All implementations go here...");
+      // set the video urls dynamically
+
+      // Display infos about the map
   }
 
   playVideo = () => {
@@ -128,28 +179,25 @@ class AnimatedMarkers extends React.Component {
                 followUserLocation
                 loadingEnabled
                 region={this.getMapRegion()}>
-                {this.state.markers.map(marker => (
-                  <Marker
-                    coordinate={marker.coordinate}
-                    title={marker.title}
-                    description={marker.description}
-                    image={require('../../assets/circle_play.png')}>
-                    <MapView.Callout tooltip style={styles.customView}>
-                      <TouchableHighlight onPress={this.playVideo} underlayColor='#dddddd'>
-                        <View style={styles.calloutText}>
-                          <Text>{marker.title}{"\n"}{marker.description}</Text>
-                        </View>
-                      </TouchableHighlight>
-                    </MapView.Callout>
-                  </Marker>
 
-                ))}
+                {
+                  Location_object.map((m, i) =>
+                    <MapView.Marker
+                      coordinate={m.latLong}
+                      title={m.title}
+                      description={m.description}
+                      onPress = {this.markerClick}
+                      key={`marker-${i}`}
+                    />
+                  )
+                }
 
                 <Marker.Animated
                   ref={marker => {
                     this.marker = marker;
                   }}
                   coordinate={this.state.coordinate} />
+
               </MapView>
             </View>
           </ScrollView>
@@ -161,7 +209,6 @@ class AnimatedMarkers extends React.Component {
             flex: 1,
             flexDirection: 'column',
           }}>
-
 
             <Text style={{ color: "black", width: 100, textAlign: 'center', fontSize: 16, fontFamily: "verdana" }}>
               AAiT building
@@ -208,7 +255,7 @@ class AnimatedMarkers extends React.Component {
             <View style={styles.buttonContainer}>
               <Text style={{ color: "black", fontSize: 18, paddingHorizontal: 10 }}>
                 Find vej
-                  </Text>
+              </Text>
               <TouchableOpacity
                 onPress={this.playVideo}
                 style={{}}>
