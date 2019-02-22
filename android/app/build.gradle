@@ -144,6 +144,8 @@ android {
 
 configurations.all {exclude group: 'com.android.support', module: 'support-v4'}
 dependencies {
+    implementation project(':react-native-spinkit')
+    implementation project(':react-native-bottom-action-sheet')
     implementation project(':react-native-maps')
     implementation 'com.facebook.soloader:soloader:0.1.0+'
     implementation project(':react-native-vector-icons')

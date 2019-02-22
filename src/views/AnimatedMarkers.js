@@ -1,206 +1,279 @@
 import React from "react";
 import {
-  StyleSheet,
   View,
   Text,
   TouchableOpacity,
-  Platform,
   ScrollView,
   Dimensions,
   Button,
-  YellowBox,
-  AsyncStorage
+  AsyncStorage,
+  Animated,
+  ActivityIndicator,
+  TouchableHighlight,
 } from "react-native";
 import MapView, { Callout, Marker, AnimatedRegion } from "react-native-maps";
 import { Icon } from 'react-native-elements'
 import VideoView from '../components/VideoView';//'./app/components/VideoView';
-import EStyleSheet from 'react-native-extended-stylesheet';
 import Firebase from '../utils/Firebase';
-import UserLocationManager from '../utils/UserLocationManager';
-import videoManage from '../utils/videoManage';
-const LATITUDE = 55.6819184;
-const LONGITUDE = 12.5938208;
-const LATITUDE_DELTA = 0.009;
-const LONGITUDE_DELTA = 0.009;
+
+import styles from '../styles/styles';
+import Modal from "react-native-modal";
+var user_location_ref = Firebase.database().ref("locations");
+const markerImage = require("../assets/images/icon_video.png");
 
 const dimensions = Dimensions.get("window");
 const mapHeight = dimensions.height;
 const mapWidth = dimensions.width;
-
-const database = Firebase.database();
-const ref = database.ref('locations');
-const regions_ref = database.ref('regions');
 
 class AnimatedMarkers extends React.Component {
   constructor(props) {
     super(props);
 
     this.state = {
-      latitude: LATITUDE,
-      longitude: LONGITUDE,
-      routeCoordinates: [],
-      width: mapWidth,
-      markers: [],
-      prevLatLng: {},
-      coordinate: new AnimatedRegion({
-        latitude: LATITUDE,
-        longitude: LONGITUDE
-      }),
-      showVideo: false,
-      Location_object: [],
-      Region_object: [],
+      actual_location: 'Admiral Hotel',
+      location_region: 'Storkøbenhavn',
+      animating: true,
+      modalVisible: true,
+      loc_object_one: [],
+      local_data_obj: [],
+      locationObj: [],
+      video_URL: [],
+      locationVideoURL: 'https://firebasestorage.googleapis.com/v0/b/within1hour-1483711039788.appspot.com/o/video%2FtestAll%2FAdmiral%20Hotel-1-1.m4v?alt=media&token=7001028b-0c56-4b10-a79b-23e36bcf0fbd',
+      markers: [
+        {
+          coordinate: {
+            latitude: 55.6819184,
+            longitude: 12.5938208
+          },
+          title: "Admiral Hotel",
+          description: "The best hotel in Copenhagen",
+        }
+      ],
+      region: {
+        latitude: 55.6819184,
+        longitude: 12.5938208,
+        latitudeDelta: 0.04864195044303443,
+        longitudeDelta: 0.040142817690068
+      }
     };
+
+    user_location_ref.once('value').then(snapshot => {
+      return new Promise((resolve, reject) => {
+        setTimeout(() => {
+          let data = snapshot.val();
+          let location_datas =  Object.values(data);
+          this.setState({
+            loc_object_one: location_datas
+          });
+          var non_validate = false;
+          if(!non_validate){
+            resolve(location_datas);
+          }else{
+            reject("There is an error to fetch the data");
+          }
+        }, 1000);
+      });
+    }).then(datas =>{
+      this.setState({animating: false, modalVisible: false});
+      this.saveAsyncData(datas);
+      this.displayAsyncData();
+      // var data_ob = JSON.parse(datas);
+      // var data_stringified = JSON.stringify(datas);
+    
+      var parseData = JSON.parse(datas);
+      alert(parseData);
+      setTimeout(() => {
+        // alert(data_stringified);
+      }, 1000);
+
+      }
+    );
+
+
   }
+
+  saveAsyncData(data){
+    AsyncStorage.setItem("locationObject", JSON.stringify(data));
+  }
+
+  displayAsyncData = async () => {
+      try{
+        let locationObject = await AsyncStorage.getItem('locationObject');
+        // let parsedData = JSON.stringify(locationObject);
+        // let againParse = JSON.parse(parsedData);
+        let locationArray = [];
+        locationArray.push(locationObject);
+        this.setState({
+          local_data_obj: locationArray
+        });
+      }catch(error){
+        console.log("Async Storage Error: ", error);
+      }
+  }
+
+
+  getVidURL = async () =>{
+    const store = Firebase.storage();
+   setTimeout(() => {
+      this.state.loc_object_one.map((vid_url, index) => {
+        var local_url = vid_url.videourl;
+        var locationFirebaseUrl = "gs://within1hour-1483711039788.appspot.com/video/testAll/" + local_url;
+        let index_one = local_url.indexOf(local_url[local_url.length - 4]);
+        let mySubstring = local_url.substr(index_one);
+        var that = this;
+        
+        if (mySubstring != ".mp4") {
+          locationFirebaseUrl += ".m4v"
+        }
+        locaReferenceUrl = store.refFromURL(locationFirebaseUrl);
+      
+        locaReferenceUrl.getDownloadURL().then(url => {
+
+            // Insert url into an <Video> tag to "download"
+            that.setState({
+              video_URL: url
+            });
+            var video_URL = {
+                videoUrl: url
+            };
+            console.log("GENERATED VIDEURL IS: ", video_URL);
+      });        
+    });
+   }, 1000);
+
+};
+  
+  playVideo(locationObject){
+    const store = Firebase.storage();
+    const local_url = locationObject.videourl;  
+    setTimeout(() => {
+        var locationFirebaseUrl = "gs://within1hour-1483711039788.appspot.com/video/testAll/" + local_url;
+        let index_one = local_url.indexOf(local_url[local_url.length - 4]);
+        let mySubstring = local_url.substr(index_one);
+        var that = this;
+        
+        if (mySubstring != ".mp4") {
+          locationFirebaseUrl += ".m4v"
+        }
+        locaReferenceUrl = store.refFromURL(locationFirebaseUrl);
+      
+        locaReferenceUrl.getDownloadURL().then(url => {
+
+            // Insert url into an <Video> tag to "download"
+            
+            // insert the generated video url into the object.
+            this.setState({
+              locationVideoURL: url,
+              actual_location:locationObject.lokation,
+              location_region: locationObject.region
+            });
+        });
+   }, 1000);
+
+ }
+
   componentWillMount() {
+    this.animation = new Animated.Value(0);
     navigator.geolocation.getCurrentPosition(
-      position => { },
-      // error => alert(error.message),
+      position => {},
+      error => console.log(error.message),
       {
         enableHighAccuracy: true,
-        timeout: 50000
+        timeout: 20000,
+        maximumAge: 1000
       }
     );
   }
 
   componentDidMount() {
 
-    var userLocationManage = new UserLocationManager();
-
-    this.setState({
-      Location_object: userLocationManage
-    });
-    // Make Location object persistent...
-    
-    _storeData = async () => {
-      try {
-        await AsyncStorage.setItem('LocationObject', userLocationManage);
-
-      } catch (error) {
-        // Error saving data
-      }
-    }
-
-    _retrieveData = async () => {
-      try {
-        const value = await AsyncStorage.getItem('LocationObject');
-        if (value !== null) {
-          this.setState({
-            Location_object: value
-          });
-        }
-       } catch (error) {
-         // Error retrieving data
-       }
-    }
-
-    // get the position coordinate object and then process it.....
-
-    const { coordinate } = this.state;
     this.watchID = navigator.geolocation.watchPosition(
       position => {
         const { coordinate, routeCoordinates } = this.state;
-        // const { latitude, longitude } = position.coords;
         const { latitude, longitude } = position.coords;
-        const newCoordinate = {
+        
+        this.setState({
           latitude,
           longitude
-        };
-        if (Platform.OS === "android") {
-          if (this.marker) {
-            this.marker._component.animateMarkerToCoordinate(
-              newCoordinate,
-              500
-            );
-          }
-        } else {
-          coordinate.timing(newCoordinate).start();
-        }
-        const width = Dimensions.get('window').width;
-        this.setState({
-          width,
-          latitude,
-          longitude,
-          routeCoordinates: routeCoordinates.concat([newCoordinate])
         });
       },
       error => console.log(error),
-      { enableHighAccuracy: true, timeout: 20000 }
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 }
     );
 
   }
 
   componentWillUnmount() {
-
-    navigator.geolocation.clearWatch(this.watchID);
+      navigator.geolocation.clearWatch(this.watchID);
   }
 
 
-  getMapRegion = () => ({
-    latitude: this.state.latitude,
-    longitude: this.state.longitude,
-    latitudeDelta: LATITUDE_DELTA,
-    longitudeDelta: LONGITUDE_DELTA
-  });
-
-  buttonClickListener = () => {
+  checkIt = () => {
     alert("works fine");
   }
+  
 
-  markerClick() {
-      console.log("All implementations go here...");
-      // set the video urls dynamically
-
-      // Display infos about the map
-  }
-
-  playVideo = () => {
-    alert("works fine");
-  }
   render() {
-
-    video = this.state.showVideo ? 'Video is not playing' : 'Video is playing';
-
     return (
       <View style={{ flex: 1, position: 'absolute', top: 0, bottom: 0, right: 0, left: 0 }}>
-        <ScrollView vertical={true} pagingEnabled >
-          <ScrollView horizontal={true} showsHorizontalScrollIndicator={true}>
-            <View style={{
-              flex: 1,
-              height: mapHeight - 200,
-              justifyContent: 'center',
-              alignItems: 'stretch',
-              flexDirection: 'row',
-              alignSelf: 'auto'
-            }}>
+        <ScrollView vertical={true}>
+
+          <Modal isVisible={this.state.modalVisible}>
+          <View style = {{alignSelf: 'center', alignItems: 'center'}}>
+                <ActivityIndicator animating = {this.state.animating}
+                style = {styles.activityIndicator} size = "large"/>
+            </View>
+          </Modal>
 
               <MapView
-                style={{ height: mapHeight - 200, width: mapWidth }}
+                style={{ height: mapHeight-200, width: mapWidth }}
                 showUserLocation
                 followUserLocation
                 loadingEnabled
-                region={this.getMapRegion()}>
+                showsUserLocation={true}
+                showsMyLocationButton={true}
+                showsCompass={true}
+                followsUserLocation={true}
+                // loadingEnabled={true}
+                toolbarEnabled={true}
+                zoomEnabled={true}
+                rotateEnabled={true}
+                ref={map => (this.map = map)}
+                initialRegion={this.state.region}>
+                {this.state.loc_object_one.map((marker, index) => {
 
-                {
-                  Location_object.map((m, i) =>
-                    <MapView.Marker
-                      coordinate={m.latLong}
-                      title={m.title}
-                      description={m.description}
-                      onPress = {this.markerClick}
-                      key={`marker-${i}`}
-                    />
-                  )
-                }
-
-                <Marker.Animated
-                  ref={marker => {
-                    this.marker = marker;
-                  }}
-                  coordinate={this.state.coordinate} />
+            
+            return (
+              <MapView.Marker
+                key={index}
+                coordinate={{
+                  latitude: parseFloat(marker.altitude),
+                  longitude: parseFloat(marker.longitude),
+                }}
+                onCalloutPress={() => this.playVideo(marker) }
+                image={markerImage}>
+              
+              <MapView.Callout>
+                  <TouchableHighlight
+                    style={styles.customView}
+                    // onPress={() => this.markerClick('this is a video url')}
+                    underlayColor="#000"
+                  >
+                    <View style={styles.calloutText}>
+                      
+                      <Text style={styles.style_marker_text}>
+                        {marker.lokation}
+                        {"\n"}
+                        Click to play video
+                      </Text>
+                    </View>
+                  </TouchableHighlight>
+                </MapView.Callout>
+              </MapView.Marker>
+            );
+          })}
 
               </MapView>
-            </View>
-          </ScrollView>
           <View style={{
             backgroundColor: '#e6e6e6',
             justifyContent: "center",
@@ -210,16 +283,14 @@ class AnimatedMarkers extends React.Component {
             flexDirection: 'column',
           }}>
 
-            <Text style={{ color: "black", width: 100, textAlign: 'center', fontSize: 16, fontFamily: "verdana" }}>
-              AAiT building
+            <Text style={{ color: "black", textAlign: 'center', fontSize: 18, fontFamily: "verdana" }}>
+              {this.state.actual_location}
             </Text>
             <Text style={{ color: "black", textAlign: 'center', fontSize: 20 }}>
-              King George Street 1000
+              {this.state.location_region}
             </Text>
           </View>
-
-          {/* video view lies here... */}
-          <VideoView />
+          <VideoView videoUrl={this.state.locationVideoURL}/>
           <View style={{
             backgroundColor: '#FFEBCD',
             flex: 1,
@@ -234,7 +305,7 @@ class AnimatedMarkers extends React.Component {
                   More info
                   </Text>
                 <TouchableOpacity
-                  onPress={this.playVideo}>
+                  onPress={() => this.checkIt}>
                   <Text style={styles.text}>
                     Fun Facts
                           </Text>
@@ -242,7 +313,7 @@ class AnimatedMarkers extends React.Component {
               </View>
               <View style={styles.buttonContainer}>
                 <TouchableOpacity
-                  onPress={this.playVideo}>
+                  onPress={this.checkIt}>
                   <Text style={styles.text}>
                     Links
                           </Text>
@@ -257,7 +328,7 @@ class AnimatedMarkers extends React.Component {
                 Find vej
               </Text>
               <TouchableOpacity
-                onPress={this.playVideo}
+                onPress={this.checkIt}
                 style={{}}>
                 <Icon
                   raised
@@ -270,11 +341,8 @@ class AnimatedMarkers extends React.Component {
             </View>
             <View style={styles.buttonContainer}>
               <TouchableOpacity
-                onPress={this.playVideo}
+                onPress={this.checkIt}
                 style={{}}>
-                {/* <Text style={styles.text}>
-                    Links
-                          </Text> */}
                 <Icon
                   raised
                   name='car'
@@ -291,7 +359,7 @@ class AnimatedMarkers extends React.Component {
             </View>
             <View style={{ justifyContent: 'flex-end', borderColor: 'white' }}>
               <Button
-                onPress={this.playVideo}
+                onPress={this.checkIt}
                 title="Sydsjaeland"
                 color="#841584"
               />
@@ -309,82 +377,10 @@ class AnimatedMarkers extends React.Component {
                 color='white' />
             </View>
           </View>
-
         </ScrollView>
       </View>
     );
   }
 }
-
-const styles = StyleSheet.create({
-  text: {
-    borderWidth: 2,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderColor: '#A9A9A9',
-    backgroundColor: '#B8860B',
-    marginHorizontal: 20,
-    color: 'white'
-  },
-  video_style: {
-    position: 'absolute',
-    alignItems: 'center',
-    top: 0,
-    left: 0,
-    bottom: 0,
-    right: 0,
-  },
-  facts_style: {
-    flex: 1,
-    flexDirection: 'row',
-    textAlign: "center"
-  },
-  links_style: {
-    flex: 1,
-    flexDirection: 'row',
-    textAlign: "center",
-    alignItems: "flex-end"
-  },
-  map: {
-    ...StyleSheet.absoluteFillObject
-  },
-  button: {
-    width: 80,
-    paddingHorizontal: 12,
-    alignItems: "center",
-    marginHorizontal: 10
-  },
-  buttonContainer: {
-    flex: 1,
-    flexDirection: "row",
-    marginHorizontal: 10
-  }
-});
-// define extended styles 
-const eStyles = EStyleSheet.create({
-  column: {
-    width: '80%'                                    // 80% of screen width
-  },
-  mapView: {
-    width: 100,
-    height: 100
-  },
-  '@media (min-width: 350) and (max-width: 500)': { // media queries
-    mapView: {
-      width: '100%',
-    }
-  },
-  '@media (min-width: 150) and (max-width: 350)': { // media queries
-    mapView: {
-      width: '100%',
-    }
-  },
-  '@media (min-width: 500) and (max-width: 650)': { // media queries
-    mapView: {
-      width: '100%',
-    }
-  }
-
-});
 
 export default AnimatedMarkers;

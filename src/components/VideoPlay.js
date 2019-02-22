@@ -23,7 +23,6 @@ export default class VideoPlay extends Component {
                 color='#f50'
                 onPress={this.playVideo} />
       </View>
-
       ); 
   }
 

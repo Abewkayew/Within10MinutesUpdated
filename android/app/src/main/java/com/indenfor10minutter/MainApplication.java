@@ -4,6 +4,8 @@ import android.app.Application;
 import android.support.multidex.MultiDex;
 
 import com.facebook.react.ReactApplication;
+import com.react.rnspinkit.RNSpinkitPackage;
+import ui.bottomactionsheet.RNBottomActionSheetPackage;
 import com.oblador.vectoricons.VectorIconsPackage;
 import com.brentvatne.react.ReactVideoPackage;
 import com.swmansion.gesturehandler.react.RNGestureHandlerPackage;
@@ -28,6 +30,8 @@ public class MainApplication extends Application implements ReactApplication {
     protected List<ReactPackage> getPackages() {
       return Arrays.<ReactPackage>asList(
           new MainReactPackage(),
+            new RNSpinkitPackage(),
+            new RNBottomActionSheetPackage(),
             new VectorIconsPackage(),
             new MapsPackage(),
             new RNGestureHandlerPackage(),

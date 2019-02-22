@@ -4,8 +4,8 @@ export default class videoManager{
     constructor(localurl) {
         this.localurl = localurl;
     }
-    getLocationVideoUrl() {
-        let final_url = {};
+    async getLocationVideoUrl() {
+        let final_url = [] ;
         let local_url = this.localurl;
         let locaReferenceUrl = "";
         if (local_url === undefined || local_url == "") {
@@ -14,7 +14,6 @@ export default class videoManager{
             const store = Firebase.storage();
             var locationFirebaseUrl = "gs://within1hour-1483711039788.appspot.com/video/testAll/" + local_url;
 
-            // let index = locaurl.index(locaurl.endIndex, offsetBy: -4)
             let index = local_url.indexOf(local_url[local_url.length - 4]);
             let mySubstring = local_url.substr(index);
 
@@ -22,25 +21,38 @@ export default class videoManager{
                 locationFirebaseUrl += ".m4v"
             }
 
-            // let locaReferenceUrl = store.refFromURL(locationFirebaseUrl);
             
             locaReferenceUrl = store.refFromURL(locationFirebaseUrl);
             
-            // Get the download URL
-            locaReferenceUrl.getDownloadURL().then(function (url) {
+
+            var loc_vid_url = await locaReferenceUrl.getDownloadURL().then(function (url) {
                 // Insert url into an <Video> tag to "download"
-                final_url.push(url);
+                final_url = url;
                 // console.log("All URLS are: " + url);
-            }).catch(function (error) {
-                // console.log("Error: " + error);
-            });
+               return final_url; 
+            });    
 
-            // final_url = locaReferenceUrl;
 
+
+
+
+            // Get the download URL
+            // return new Promise(resolve => {
+            //     locaReferenceUrl.getDownloadURL().then(function (url) {
+            //         // Insert url into an <Video> tag to "download"
+            //         final_url = url;
+            //         // console.log("All URLS are: " + url);
+            //        resolve(final_url); 
+            //     }).catch(function (error) {
+            //         // console.log("Error: " + error);
+            //     });
+            // });
+            
+
+            
          }
-
-
-        return locaReferenceUrl;
+        return loc_vid_url;
+        
     }
-
+    
 }
