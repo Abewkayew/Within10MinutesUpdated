@@ -33,6 +33,7 @@ class AnimatedMarkers extends React.Component {
       actual_location: 'Admiral Hotel',
       location_region: 'Storkøbenhavn',
       animating: true,
+      pause_state: true,
       modalVisible: true,
       loc_object_one: [],
       local_data_obj: [],
@@ -74,7 +75,7 @@ class AnimatedMarkers extends React.Component {
         }, 1000);
       });
     }).then(datas =>{
-      this.setState({animating: false, modalVisible: false});
+      this.setState({animating: false, modalVisible: false, pause_state: false});
       this.saveAsyncData(datas);
       this.displayAsyncData();
       // var data_ob = JSON.parse(datas);
@@ -290,7 +291,7 @@ class AnimatedMarkers extends React.Component {
               {this.state.location_region}
             </Text>
           </View>
-          <VideoView videoUrl={this.state.locationVideoURL}/>
+          <VideoView videoUrl={this.state.locationVideoURL} pause_state={this.state.pause_state}/>
           <View style={{
             backgroundColor: '#FFEBCD',
             flex: 1,

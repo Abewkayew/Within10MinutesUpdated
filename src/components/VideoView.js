@@ -35,7 +35,7 @@ export default class VideoView extends Component {
           navigator={this.props.navigator}
           toggleResizeModeOnFullscreen={true}
           controls={true}
-          paused={true}
+          paused={this.props.pause_state}
         />
 
       </View >
